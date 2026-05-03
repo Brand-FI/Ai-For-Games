@@ -50,7 +50,7 @@ public class GridBlock : MonoBehaviour
         }
     }
 
-    public List<Node> GetNeighboringNodes(Node neighborNodeInp)
+    /*public List<Node> GetNeighboringNodes(Node neighborNodeInp)
     {
         List<Node> neighborList = new List<Node>();
 
@@ -69,6 +69,24 @@ public class GridBlock : MonoBehaviour
                 }
             }
         }
+        return neighborList;
+    }*/
+    public List<Node> GetNeighboringNodes(Node neighborNodeInp)
+    {
+        List<Node> neighborList = new List<Node>();
+
+        // Hanya 4 arah - tidak diagonal supaya tidak nabrak corner
+        int[] checkX = { 0, 0, 1, -1 };
+        int[] checkY = { 1, -1, 0, 0 };
+
+        for (int i = 0; i < 4; i++)
+        {
+            int x = neighborNodeInp.gridX + checkX[i];
+            int y = neighborNodeInp.gridY + checkY[i];
+            if (x >= 0 && x < gridSizeX && y >= 0 && y < gridSizeY)
+                neighborList.Add(nodeGrid[x, y]);
+        }
+
         return neighborList;
     }
 
