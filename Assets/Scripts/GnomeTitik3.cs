@@ -33,15 +33,14 @@ public class GnomeTitik3 : MonoBehaviour
 
     private List<Node> blockedNodes = new List<Node>();
 
+    List<Node> path;
+    int currentIndex = 0;
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         gridRef = gridObject.GetComponent<GridBlock>();
         pathfinder = gridObject.GetComponent<Pathfinding>();
-
-        pathfinder.startPos = transform;
-        gridRef.startPos = transform;
-
         SetTarget(GetWanderNode());
     }
 
@@ -65,7 +64,7 @@ public class GnomeTitik3 : MonoBehaviour
             case State.SeekHunter: UpdateSeekHunter(); break;
         }
         Debug.Log("State: " + currentState +
-          " | finalPath: " + (gridRef.finalPath != null ? gridRef.finalPath.Count : -1) +
+          " | finalPath: " + (path != null ? path.Count : -1) +
           " | moveSpeed: " + moveSpeed +
           " | moveVector: " + moveVector +
           " | isMoving: " + isMoving +
@@ -125,7 +124,7 @@ public class GnomeTitik3 : MonoBehaviour
         MoveAlongPathFlee();
 
         bool nearTarget = Vector3.Distance(transform.position, fleeTarget) < satisfactionRadius * 2f;
-        bool pathEmpty = gridRef.finalPath == null || gridRef.finalPath.Count == 0;
+        bool pathEmpty = path == null || path.Count == 0;
 
         if (nearTarget || pathEmpty)
             TransitionToWander();
@@ -143,7 +142,7 @@ public class GnomeTitik3 : MonoBehaviour
 
     void MoveAlongPath()
     {
-        if (gridRef.finalPath == null || gridRef.finalPath.Count == 0)
+        if (path == null || path.Count == 0 || currentIndex >= path.Count)
         {
             moveVector = Vector3.zero;
             moveSpeed = 0f;
@@ -156,22 +155,14 @@ public class GnomeTitik3 : MonoBehaviour
             return;
         }
 
-        Vector3 targetNodePos = gridRef.finalPath[0].worldPos;
+        Vector3 targetNodePos = path[currentIndex].worldPos;
         targetNodePos.y = transform.position.y;
 
         float distToFirst = Vector3.Distance(transform.position, targetNodePos);
 
-        if (distToFirst < satisfactionRadius && gridRef.finalPath.Count > 1)
+        if (distToFirst < satisfactionRadius)
         {
-            targetNodePos = gridRef.finalPath[1].worldPos;
-            targetNodePos.y = transform.position.y;
-        }
-        else if (distToFirst < satisfactionRadius && gridRef.finalPath.Count == 1)
-        {
-            moveVector = Vector3.zero;
-            moveSpeed = 0f;
-            currentTarget = Vector3.zero;
-            SetTarget(GetWanderNode());
+            currentIndex++;
             return;
         }
 
@@ -186,7 +177,7 @@ public class GnomeTitik3 : MonoBehaviour
 
         if (isMoving && direction.sqrMagnitude > 0.01f)
         {
-            if (gridRef.finalPath.Count > 1)
+            if (path.Count > 1)
             {
                 Quaternion lookRotation = Quaternion.LookRotation(direction);
                 transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation,
@@ -211,10 +202,9 @@ public class GnomeTitik3 : MonoBehaviour
         moveVector = direction.normalized;
     }
 
-
     void MoveAlongPathFlee()
     {
-        if (gridRef.finalPath == null || gridRef.finalPath.Count == 0)
+        if (path == null || path.Count == 0)
         {
             moveVector = Vector3.zero;
             moveSpeed = 0f;
@@ -222,17 +212,17 @@ public class GnomeTitik3 : MonoBehaviour
             return;
         }
 
-        Vector3 targetNodePos = gridRef.finalPath[0].worldPos;
+        Vector3 targetNodePos = path[0].worldPos;
         targetNodePos.y = transform.position.y;
 
         float distToFirst = Vector3.Distance(transform.position, targetNodePos);
 
-        if (distToFirst < satisfactionRadius && gridRef.finalPath.Count > 1)
+        if (distToFirst < satisfactionRadius && path.Count > 1)
         {
-            targetNodePos = gridRef.finalPath[1].worldPos;
+            targetNodePos = path[1].worldPos;
             targetNodePos.y = transform.position.y;
         }
-        else if (distToFirst < satisfactionRadius && gridRef.finalPath.Count == 1)
+        else if (distToFirst < satisfactionRadius && path.Count == 1)
         {
             moveVector = Vector3.zero;
             moveSpeed = 0f;
@@ -276,17 +266,11 @@ public class GnomeTitik3 : MonoBehaviour
     void SetTarget(Vector3 targetPos)
     {
         if (Vector3.Distance(targetPos, currentTarget) < 0.5f) return;
+
         currentTarget = targetPos;
 
-        if (pathfinder.targetPos == null || pathfinder.targetPos.name != "GnomeTarget")
-        {
-            GameObject temp = new GameObject("GnomeTarget");
-            pathfinder.targetPos = temp.transform;
-            gridRef.targetPos = temp.transform;
-        }
-
-        pathfinder.targetPos.position = targetPos;
-        gridRef.targetPos.position = targetPos;
+        path = pathfinder.FindPath(transform.position, targetPos);
+        currentIndex = 0;
     }
 
     Vector3 GetFleeNode()
@@ -362,10 +346,52 @@ public class GnomeTitik3 : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject == player)
+        if (collision.gameObject.tag == "Player")
         {
             Debug.Log("PLAYER MENANG!");
             gameObject.SetActive(false);
         }
+    }
+
+    void OnDrawGizmos()
+    {
+        if (path != null && path.Count > 0)
+        {
+            Gizmos.color = Color.black;
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                Gizmos.DrawSphere(path[i].worldPos, 0.2f);
+
+                if (i < path.Count - 1)
+                {
+                    Gizmos.DrawLine(
+                        path[i].worldPos,
+                        path[i + 1].worldPos
+                    );
+                }
+            }
+
+            if (currentIndex < path.Count)
+            {
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawSphere(path[currentIndex].worldPos, 0.35f);
+            }
+        }
+
+        if (player != null)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawSphere(player.transform.position, 0.4f);
+        }
+
+        if (hunter != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawSphere(hunter.transform.position, 0.4f);
+            Gizmos.DrawLine(transform.position, hunter.transform.position);
+        }
+        Gizmos.color = Color.green;
+        Gizmos.DrawSphere(transform.position, 0.4f);
     }
 }

@@ -4,21 +4,13 @@ using System.Collections.Generic;
 public class Pathfinding : MonoBehaviour
 {
     GridBlock gridRef;
-    public Transform startPos;
-    public Transform targetPos;
 
     void Awake()
     {
         gridRef = GetComponent<GridBlock>();
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        FindPath(startPos.position, targetPos.position);
-    }
-
-    void FindPath(Vector3 startPosInp, Vector3 targetPosInp)
+    public List<Node>FindPath(Vector3 startPosInp, Vector3 targetPosInp)
     {
         Node startNode = gridRef.NodeFromWorldPoint(startPosInp);
         Node targetNode = gridRef.NodeFromWorldPoint(targetPosInp);
@@ -44,8 +36,8 @@ public class Pathfinding : MonoBehaviour
 
             if(currentNode == targetNode)
             {
-                GetFinalPath(startNode, targetNode);
-                return;
+                return GetFinalPath(startNode, targetNode);
+               
             }
 
             foreach(Node neighborNode in gridRef.GetNeighboringNodes(currentNode))
@@ -63,13 +55,15 @@ public class Pathfinding : MonoBehaviour
                     neighborNode.heuristicCost = GetManhattanDistance(neighborNode, targetNode);
                     neighborNode.ParentNode = currentNode;
 
-                    if(!openList.Contains(neighborNode))openList.Add(neighborNode);
+                    if(!openList.Contains(neighborNode))
+                        openList.Add(neighborNode);
                 }
             }
         }
+        return null;
     }
 
-    void GetFinalPath(Node startNodeInp, Node endNodeInp)
+    List<Node> GetFinalPath(Node startNodeInp, Node endNodeInp)
     {
         List<Node> finalPath = new List<Node>();
         Node currentNode = endNodeInp;
@@ -81,8 +75,7 @@ public class Pathfinding : MonoBehaviour
         }
 
         finalPath.Reverse();
-
-        gridRef.finalPath = finalPath;
+        return finalPath;
     }
 
     int GetManhattanDistance(Node nodeA, Node nodeB)

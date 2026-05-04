@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class Hunter : MonoBehaviour
@@ -18,6 +19,13 @@ public class Hunter : MonoBehaviour
     private GridBlock gridRef;
     private Pathfinding pathfinder;
     private Animator animator;
+
+    //untuk simpan path, karena skrng di masing ai simpan path
+    List<Node> path;
+    int currentIndex = 0;
+    float repathTimer = 0f;
+    public float repathInterval = 0.3f;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -27,27 +35,42 @@ public class Hunter : MonoBehaviour
         animator = GetComponent<Animator>();
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
     void FixedUpdate()
     {
-        if (gridRef.finalPath != null && gridRef.finalPath.Count > 0) //Make sure there is a path of nodes, and make sure not to break over index
+        repathTimer -= Time.deltaTime;
+
+        if (repathTimer <= 0f)
         {
-            Vector3 targetNodePos = gridRef.finalPath[0].worldPos; 
-            if(gridRef.finalPath.Count > 2) targetNodePos *= overShot;//Target closest node and then add Overshot as a "He's running. He's chasing. He nearly ran to a wall."
+            UpdatePath();
+            repathTimer = repathInterval;
+        }
+
+
+        if (path != null && path.Count > 0) //Make sure there is a path of nodes, and make sure not to break over index
+        {
+            Vector3 targetNodePos = path[currentIndex].worldPos;
+
+            if (path.Count > 2) targetNodePos *= overShot;//Target closest node and then add Overshot as a "He's running. He's chasing. He nearly ran to a wall."
             isRunning = true;
-            if (gridRef.finalPath.Count > 1)
+            if (path.Count > 1)
             {
-                Vector3 nextNodePos = gridRef.finalPath[1].worldPos;
-                Vector3 dirToNext = nextNodePos - transform.position;
-                float distToCurrent = Vector3.Distance(transform.position, targetNodePos);
-                if (distToCurrent < satisfactionRadius)
+                if (currentIndex + 1 < path.Count)
                 {
-                    targetNodePos = nextNodePos;
+                    Vector3 nextNodePos = path[currentIndex + 1].worldPos;
+                    Vector3 dirToNext = nextNodePos - transform.position;
+                    float distToCurrent = Vector3.Distance(transform.position, targetNodePos);
+
+                    if (distToCurrent < satisfactionRadius)
+                    {
+                        currentIndex++;
+                        if (currentIndex >= path.Count)
+                        {
+                            path = null;
+                            currentIndex = 0;
+                            return;
+                        }
+                        targetNodePos = path[currentIndex].worldPos;
+                    }
                 }
             }
             SteeringSeek(targetNodePos);
@@ -64,7 +87,7 @@ public class Hunter : MonoBehaviour
 
         if(isRunning && direction.sqrMagnitude > 0.01f)
         {
-            if(gridRef.finalPath.Count > 1)
+            if(path.Count > 1)
             {
                 Quaternion lookRotation = Quaternion.LookRotation(direction);
                 transform.rotation = Quaternion.Slerp(lookRotation, transform.rotation, rotationSpeed * Time.deltaTime);
@@ -85,5 +108,40 @@ public class Hunter : MonoBehaviour
         }
 
         moveVector = direction.normalized;
+    }
+
+    void UpdatePath()
+    {
+        path = pathfinder.FindPath(transform.position, player.transform.position);
+        currentIndex = 0;
+    }
+    void OnDrawGizmos()
+    {
+        if (path != null && path.Count > 0)
+        {
+            Gizmos.color = Color.black;
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                Gizmos.DrawSphere(path[i].worldPos, 0.2f);
+
+                if (i < path.Count - 1)
+                {
+                    Gizmos.DrawLine(
+                        path[i].worldPos,
+                        path[i + 1].worldPos
+                    );
+                }
+            }
+        }
+
+        if (player != null)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawSphere(player.transform.position, 0.4f);
+        }
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawSphere(transform.position, 0.4f);
     }
 }

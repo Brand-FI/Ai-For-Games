@@ -3,8 +3,8 @@ using System.Collections.Generic;
 
 public class GridBlock : MonoBehaviour
 {
-    public Transform startPos;
-    public Transform targetPos;
+    //public Transform startPos;
+    //public Transform targetPos;
 
     public LayerMask wallMask;
 
@@ -16,21 +16,15 @@ public class GridBlock : MonoBehaviour
     public float distanceBetweenNodes;
 
     Node[,] nodeGrid;
-    public List<Node> finalPath;
+    //public List<Node> finalPath;
     int gridSizeX, gridSizeY;
 
-    void Start()
+    void Awake()
     {
         nodeDiameter = nodeRadius * 2;
         gridSizeX = Mathf.RoundToInt(gridWorldSize.x / nodeDiameter);
         gridSizeY = Mathf.RoundToInt(gridWorldSize.y / nodeDiameter);
         CreateGrid();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 
     void CreateGrid()
@@ -108,21 +102,21 @@ public class GridBlock : MonoBehaviour
     {
         if(nodeGrid != null)
         {
-            Node playerNode = NodeFromWorldPoint(startPos.position);
-            Node targetNode = NodeFromWorldPoint(targetPos.position);
+            /*Node playerNode = NodeFromWorldPoint(startPos.position);
+            Node targetNode = NodeFromWorldPoint(targetPos.position); */
 
             foreach(Node n in nodeGrid)
             {
                 if(n.isWall)Gizmos.color = Color.red;
                 else Gizmos.color = Color.white;
 
-                if(finalPath != null)
+                /*if(finalPath != null)
                 {
                     if(finalPath.Contains(n))Gizmos.color = Color.black;
                 }
 
                 if(playerNode == n)Gizmos.color = Color.green;
-                if(targetNode == n)Gizmos.color = Color.cyan;
+                if(targetNode == n)Gizmos.color = Color.cyan;*/
 
                 Gizmos.DrawCube(n.worldPos, Vector3.one * (nodeDiameter - distanceBetweenNodes));
             }
