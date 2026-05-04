@@ -98,6 +98,24 @@ public class GridBlock : MonoBehaviour
         return nodeGrid[x, y];
     }
 
+    //random node buat wander
+    public Node GetRandomNode()
+    {
+        int x = Random.Range(0, gridSizeX);
+        int y = Random.Range(0, gridSizeY);
+
+        Node randomNode = nodeGrid[x, y];
+
+        while (randomNode.isWall)
+        {
+            x = Random.Range(0, gridSizeX);
+            y = Random.Range(0, gridSizeY);
+            randomNode = nodeGrid[x, y];
+        }
+
+        return randomNode;
+    }
+
     private void OnDrawGizmos()
     {
         if(nodeGrid != null)

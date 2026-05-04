@@ -1,68 +1,183 @@
+﻿using System.Collections.Generic;
 using UnityEngine;
-using System.Collections.Generic;
 
 public class Gnome : MonoBehaviour
 {
-    public GridBlock grid;
-    public float speed = 2f;
-    public float reachDistance = 0.5f;
+    enum GnomeState
+    {
+        Wander,
+        Flee,
+        Seek
 
-    private Node currentNode;
-    private Node targetNode;
-    private Node lastNode;
+    }
+    GnomeState currentState;
+
+    public float speed = 3f;
+    public float reachDistance = 0.3f;
+
+    public GameObject gridObject;
+    public float rotationSpeed = 5f;
+
+    Pathfinding pathfinder;
+    GridBlock grid;
+
+    List<Node> path;
+    int currentIndex = 0;
+
+    public float detectionRadius = 5f;
+    public Transform player;
+    public Transform hunter;
+
+    bool wasInRange = false;
+
 
     void Start()
     {
-        currentNode = grid.NodeFromWorldPoint(transform.position);
-        PickNextNode();
+        grid = gridObject.GetComponent<GridBlock>();
+        pathfinder = gridObject.GetComponent<Pathfinding>();
+        currentState = GnomeState.Wander;//awal muncul langsung wander
+        PickNewDestination();
     }
 
     void Update()
     {
-        if (targetNode == null) return;
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+        bool isInRange = distToPlayer < detectionRadius;
 
-        MoveToTarget();
-
-        if (ReachedTarget())
+        //jika masuk range musuh maka DecideAction
+        if (isInRange && !wasInRange)
         {
-            lastNode = currentNode;
-            currentNode = targetNode;
-            PickNextNode();
+            Debug.Log("Masuk radius player");
+            DecideAction();
+        }
+        if (!isInRange && wasInRange)//jika sudah keluar langsung wander
+        {
+            Debug.Log("Keluar dari radius player");
+            currentState = GnomeState.Wander;
+            PickNewDestination();
+        }
+        wasInRange = isInRange;
+        Wandering();
+    }
+
+    void Wandering()
+    {
+        if (path == null || path.Count == 0) return;
+
+        Vector3 targetPos = path[currentIndex].worldPos;
+
+        Vector3 direction = targetPos - transform.position;
+        direction.y = 0;
+
+        if (direction.magnitude > 0.01f)
+        {
+            Quaternion lookRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                lookRotation,
+                rotationSpeed * Time.deltaTime
+            );
+        }
+
+        targetPos.y = transform.position.y;
+
+        transform.position = Vector3.MoveTowards(
+            transform.position,
+            targetPos,
+            speed * Time.deltaTime
+        );
+
+        if (Vector3.Distance(transform.position, targetPos) < reachDistance)
+        {
+            currentIndex++;
+            //sudah sampai tujuan akhir
+            if (currentIndex >= path.Count)
+            {
+                currentIndex = path.Count - 1;
+
+                if (currentState == GnomeState.Wander)
+                {
+                    PickNewDestination();
+                }
+                else if (currentState == GnomeState.Flee)
+                {
+                    SetFleePath();
+                }
+            }
         }
     }
-    void PickNextNode()
-    {
-        var neighbors = grid.GetNeighboringNodes(currentNode);
 
-        if (neighbors == null || neighbors.Count == 0)
+    void PickNewDestination()
+    {
+        Node randomNode = grid.GetRandomNode();
+
+        path = pathfinder.FindPath(transform.position, randomNode.worldPos);
+
+        if (path == null || path.Count == 0)
+        {
+            PickNewDestination();
             return;
-
-        List<Node> validNodes = new List<Node>();
-
-        foreach (var n in neighbors)
-        {
-            if (n != lastNode)
-                validNodes.Add(n);
         }
 
-        if (validNodes.Count == 0)
-            validNodes = neighbors;
-
-        targetNode = validNodes[Random.Range(0, validNodes.Count)];
+        currentIndex = 0;
     }
-    void MoveToTarget()
+
+    void DecideAction()
     {
-        Vector3 dir = targetNode.worldPos - transform.position;
-        dir.y = 0;
-
-        transform.position += dir.normalized * speed * Time.deltaTime;
+        if (Random.Range(0, 2) == 0)
+        {
+            currentState = GnomeState.Flee;
+            SetFleePath();
+            Debug.Log("Flee");
+        }
+        else
+        {
+            currentState = GnomeState.Flee;
+            SetFleePath();
+            Debug.Log("Flee");
+        }
     }
-
-    bool ReachedTarget()
+    void SetFleePath()
     {
-        Vector3 dir = targetNode.worldPos - transform.position;
-        dir.y = 0;
+        Vector3 dirAway = (transform.position - player.position).normalized;
+        Vector3 target = transform.position + dirAway * 5f;
 
-        return dir.magnitude < reachDistance;
+        path = pathfinder.FindPath(transform.position, target);
+
+        if (path == null || path.Count == 0)
+        {
+            PickNewDestination();
+            return;
+        }
+
+        currentIndex = 0;
     }
+
+    void OnDrawGizmos()
+    {
+        if (path != null && path.Count > 0)
+        {
+            Gizmos.color = Color.green;
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                Gizmos.DrawSphere(path[i].worldPos, 0.2f);
+
+                if (i < path.Count - 1)
+                {
+                    Gizmos.DrawLine(
+                        path[i].worldPos,
+                        path[i + 1].worldPos
+                    );
+                }
+            }
+        }
+        Gizmos.color = Color.blue;
+        Gizmos.DrawSphere(transform.position, 0.3f);
+
+        //radius sekitar
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, detectionRadius);
+    }
+
 }

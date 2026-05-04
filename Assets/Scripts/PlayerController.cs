@@ -26,4 +26,13 @@ public class PlayerController : MonoBehaviour
         moveDir.y = 0;
         controller.Move(moveDir.normalized * speed * Time.deltaTime);
     }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Gnome"))
+        {
+            Debug.Log("YOU WIN!");
+            Time.timeScale = 0f;
+        }
+    }
 }
