@@ -103,6 +103,10 @@ public class Gnome : MonoBehaviour
                 {
                     SetFleePath();
                 }
+                else if (currentState == GnomeState.Seek)
+                {
+                    SetSeekPath();
+                }
             }
         }
     }
@@ -132,9 +136,19 @@ public class Gnome : MonoBehaviour
         }
         else
         {
-            currentState = GnomeState.Flee;
-            SetFleePath();
-            Debug.Log("Flee");
+            float dist = Vector3.Distance(hunter.position, player.position);
+            if (dist < detectionRadius)
+            {
+                currentState = GnomeState.Flee;
+                SetFleePath();
+                Debug.Log("Flee karena hunter dekat player");
+            }
+            else
+            {
+                currentState = GnomeState.Seek;
+                SetSeekPath();
+                Debug.Log("Seek hunter");
+            }
         }
     }
     void SetFleePath()
@@ -152,7 +166,18 @@ public class Gnome : MonoBehaviour
 
         currentIndex = 0;
     }
+    void SetSeekPath()
+    {
+        path = pathfinder.FindPath(transform.position, hunter.position);
 
+        if (path == null || path.Count == 0)
+        {
+            PickNewDestination();
+            return;
+        }
+
+        currentIndex = 0;
+    }
     void OnDrawGizmos()
     {
         if (path != null && path.Count > 0)
