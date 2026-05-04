@@ -1842,6 +1842,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Pumpkin
       objectReference: {fileID: 0}
+    - target: {fileID: 2504922476855667, guid: 201a7176c737eb844a2ea1982cf21459, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
     - target: {fileID: 811552393662307273, guid: 201a7176c737eb844a2ea1982cf21459, type: 3}
       propertyPath: m_LocalScale.x
       value: 2.69
