@@ -7,7 +7,7 @@ public class Hunter : MonoBehaviour
     Vector3 moveVector = Vector3.zero;
     Rigidbody rb;
     public GameObject player;
-    public GameObject target;
+    public Transform sightPoint;
     public float satisfactionRadius = 0.5f;
     public float slowRadius = 0.5f;
     public float maxSpeed = 5f;
@@ -22,10 +22,14 @@ public class Hunter : MonoBehaviour
 
     //untuk simpan path, karena skrng di masing ai simpan path
     List<Node> path;
-    int currentIndex = 0;
-    float repathTimer = 0f;
-    public float repathInterval = 0.3f;
+    public int currentIndex = 0;
+    public float repathTimer = 0f;
+    public float repathInterval = 1f;
 
+    public bool inSight = false;
+    public float outOfSight = 0f;
+    public float outOfSightMax = 5f;
+    public bool targetReached = false;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -37,42 +41,52 @@ public class Hunter : MonoBehaviour
 
     void FixedUpdate()
     {
-        repathTimer -= Time.deltaTime;
+        Sight();
+        if(repathTimer > 0f)repathTimer -= Time.deltaTime;
 
-        if (repathTimer <= 0f)
+        if(!inSight && outOfSight > 0f)outOfSight -= Time.deltaTime;
+
+        if(outOfSight <= 0f)
         {
-            UpdatePath();
-            repathTimer = repathInterval;
+            if(repathTimer <= 0f && repathTimer >= -1f)
+            {
+                UpdatePath("Lost");
+                repathTimer = -2f;
+                Debug.Log("Lost sight of the target, wandering.");
+            }
         }
-
 
         if (path != null && path.Count > 0) //Make sure there is a path of nodes, and make sure not to break over index
         {
             Vector3 targetNodePos = path[currentIndex].worldPos;
 
-            if (path.Count > 2) targetNodePos *= overShot;//Target closest node and then add Overshot as a "He's running. He's chasing. He nearly ran to a wall."
+            if (path.Count - currentIndex > 1) targetNodePos *= overShot;//Target closest node and then add Overshot as a "He's running. He's chasing. He nearly ran to a wall."
             isRunning = true;
-            if (path.Count > 1)
-            {
-                if (currentIndex + 1 < path.Count)
-                {
-                    Vector3 nextNodePos = path[currentIndex + 1].worldPos;
-                    Vector3 dirToNext = nextNodePos - transform.position;
-                    float distToCurrent = Vector3.Distance(transform.position, targetNodePos);
 
-                    if (distToCurrent < satisfactionRadius)
+            if (currentIndex + 1 < path.Count)
+            {
+                Vector3 nextNodePos = path[currentIndex + 1].worldPos;
+                Vector3 dirToNext = nextNodePos - transform.position;
+                float distToCurrent = Vector3.Distance(transform.position, targetNodePos);
+
+                if (distToCurrent < satisfactionRadius)
+                {
+                    currentIndex++;
+                    if (currentIndex >= path.Count)
                     {
-                        currentIndex++;
-                        if (currentIndex >= path.Count)
-                        {
-                            path = null;
-                            currentIndex = 0;
-                            return;
-                        }
-                        targetNodePos = path[currentIndex].worldPos;
+                        path = null;
+                        currentIndex = 0;
+                        return;
                     }
+                    Debug.Log(path.Count);
+                    targetNodePos = path[currentIndex].worldPos;
                 }
             }
+            else
+            {
+                UpdatePath("Reached");
+            }
+            
             SteeringSeek(targetNodePos);
         }
 
@@ -80,6 +94,24 @@ public class Hunter : MonoBehaviour
         rb.linearVelocity = moveVector * moveSpeed;
     }
 
+    void Sight()
+    {
+        RaycastHit hitInfo;
+        bool hit = Physics.Raycast(sightPoint.position, sightPoint.forward, out hitInfo);
+
+        if(hitInfo.collider.CompareTag("Player"))
+        {
+            UpdatePath("Player");
+            inSight = true;
+            outOfSight = outOfSightMax;
+            Debug.Log("Target in sight, following.");
+        }
+        else
+        {
+            inSight = false;
+        }
+    }
+    
     void SteeringSeek(Vector3 seekTarget)
     {
         Vector3 direction = seekTarget - transform.position;
@@ -97,6 +129,7 @@ public class Hunter : MonoBehaviour
         if(direction.magnitude < satisfactionRadius)
         {
             isRunning = false;
+            repathTimer = repathInterval;
         }
         else if(direction.magnitude < slowRadius)
         {
@@ -110,11 +143,21 @@ public class Hunter : MonoBehaviour
         moveVector = direction.normalized;
     }
 
-    void UpdatePath()
+    void UpdatePath(string target)
     {
-        path = pathfinder.FindPath(transform.position, player.transform.position);
+        if(target == "Player")
+        {
+            path = pathfinder.FindPath(transform.position, player.transform.position);
+        }
+        else
+        {
+            Node randomNode = gridRef.GetRandomNode();
+            path = pathfinder.FindPath(transform.position, randomNode.worldPos);
+        }
+
         currentIndex = 0;
     }
+    
     void OnDrawGizmos()
     {
         if (path != null && path.Count > 0)
