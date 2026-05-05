@@ -33,6 +33,13 @@ public class Hunter : MonoBehaviour
     public float outOfSightMax = 5f;
 
     public string currentTarget = "";
+
+    //3 Raycast
+    public float sightRange = 10f;
+    public float sightAngle = 15f;
+
+
+    public float stopDistance = 0.5f;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -63,6 +70,20 @@ public class Hunter : MonoBehaviour
                 repathTimer = repathInterval;
                 UpdatePath();
                 Debug.Log("Lost sight of the target, wandering.");
+            }
+        }
+
+        if (currentTarget == "Player")//jika liat target dan sudah dekat maka berhenti dan win
+        {
+            float distToPlayer = Vector3.Distance(transform.position, player.transform.position);
+            if (distToPlayer < stopDistance)
+            {
+                isRunning = false;
+                moveVector = Vector3.zero;
+                animator.SetBool("isRunning", isRunning);
+                rb.linearVelocity = Vector3.zero;
+                GameHelper.Instance.showPanelLose();
+                return;
             }
         }
 
@@ -108,25 +129,36 @@ public class Hunter : MonoBehaviour
 
     void Sight()
     {
-        RaycastHit hitInfo;
-        bool hit = Physics.Raycast(sightPoint.position, sightPoint.forward, out hitInfo);
+        Vector3[] directions = new Vector3[]
+        {
+        sightPoint.forward,
+        Quaternion.Euler(0, -sightAngle, 0) * sightPoint.forward,
+        Quaternion.Euler(0,  sightAngle, 0) * sightPoint.forward,
+        };
 
-        if(hitInfo.collider.CompareTag("Player"))
+        bool hit = false;
+        foreach (Vector3 dir in directions)
         {
-            currentTarget = "Player";
-            UpdatePath();
-            inSight = true;
-            outOfSight = outOfSightMax;
-            Debug.Log("Target in sight, following.");
+            RaycastHit hitInfo;
+            hit = Physics.Raycast(sightPoint.position, dir, out hitInfo, sightRange);
+            if (hit && hitInfo.collider != null && hitInfo.collider.CompareTag("Player"))
+            {
+                currentTarget = "Player";
+                UpdatePath();
+                inSight = true;
+                outOfSight = outOfSightMax;
+                Debug.Log("Target in sight, following.");
+                return;
+            }
         }
-        else
-        {
-            inSight = false;
-        }
+
+        inSight = false;
     }
-    
+
     void SteeringSeek(Vector3 seekTarget)
     {
+        if (path == null) return;
+
         Vector3 direction = seekTarget - transform.position;
         Vector3 playerDirection = player.transform.position - transform.position;
 
@@ -138,6 +170,7 @@ public class Hunter : MonoBehaviour
             {
                 Quaternion lookRotation = Quaternion.LookRotation(direction);
                 transform.rotation = Quaternion.Slerp(lookRotation, transform.rotation, rotationSpeed * Time.deltaTime);
+                //coba transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, rotationSpeed * Time.deltaTime);
             }
         }
         

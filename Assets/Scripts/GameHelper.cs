@@ -6,7 +6,7 @@ public class GameHelper : MonoBehaviour
 {
     public static GameHelper Instance;
     public GameObject panelWin;
-
+    public GameObject panelLose;
     private void Awake()
     {
         if (Instance == null)
@@ -26,10 +26,20 @@ public class GameHelper : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
+
+    public void showPanelLose()
+    {
+        panelLose.SetActive(true);
+        Time.timeScale = 0;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
     public void Retry()
     {
         Time.timeScale = 1;
         panelWin.SetActive(false);
+        panelLose.SetActive(false);
         SceneManager.LoadScene("Level 1");
     }
 
@@ -37,6 +47,7 @@ public class GameHelper : MonoBehaviour
     {
         Time.timeScale = 1;
         panelWin.SetActive(false);
+        panelLose.SetActive(false);
         SceneManager.LoadScene("Menu");
     }
 }
