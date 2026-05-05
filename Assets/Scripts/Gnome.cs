@@ -30,7 +30,10 @@ public class Gnome : MonoBehaviour
 
     bool wasInRange = false;
 
+    public GameObject key;//buat ref key
+    public GameObject panelWin; 
 
+  
     void Start()
     {
         grid = gridObject.GetComponent<GridBlock>();
@@ -205,4 +208,14 @@ public class Gnome : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, detectionRadius);
     }
 
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            Destroy(key);
+            Debug.Log("Player Wins");
+            GameHelper.Instance.showPanelWin();
+        }
+    }
 }
