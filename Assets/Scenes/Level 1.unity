@@ -4066,7 +4066,7 @@ MonoBehaviour:
   player: {fileID: 690171089}
   sightPoint: {fileID: 393414495}
   satisfactionRadius: 0.5
-  slowRadius: 0.5
+  slowRadius: 1
   maxSpeed: 5
   overShot: 1.1
   isRunning: 0
@@ -4079,9 +4079,11 @@ MonoBehaviour:
   repathTimer: 0
   repathInterval: 0.3
   inSight: 0
+  sightTimer: 0
+  sightInterval: 0.1
   outOfSight: 0
   outOfSightMax: 5
-  targetReached: 0
+  currentTarget: 
 --- !u!136 &1749007142
 CapsuleCollider:
   m_ObjectHideFlags: 0

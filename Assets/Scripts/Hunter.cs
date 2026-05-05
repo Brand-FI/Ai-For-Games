@@ -9,7 +9,7 @@ public class Hunter : MonoBehaviour
     public GameObject player;
     public Transform sightPoint;
     public float satisfactionRadius = 0.5f;
-    public float slowRadius = 0.5f;
+    public float slowRadius = 1f;
     public float maxSpeed = 5f;
     public float overShot = 1.1f;
     public bool isRunning = false;
@@ -27,9 +27,12 @@ public class Hunter : MonoBehaviour
     public float repathInterval = 1f;
 
     public bool inSight = false;
+    public float sightTimer = 0f;
+    public float sightInterval = 0.2f;
     public float outOfSight = 0f;
     public float outOfSightMax = 5f;
-    public bool targetReached = false;
+
+    public string currentTarget = "";
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -41,17 +44,24 @@ public class Hunter : MonoBehaviour
 
     void FixedUpdate()
     {
-        Sight();
+        sightTimer -= Time.deltaTime;
+        if (sightTimer <= 0f)
+        {
+            Sight();
+            sightTimer = sightInterval;
+        }
+
         if(repathTimer > 0f)repathTimer -= Time.deltaTime;
 
         if(!inSight && outOfSight > 0f)outOfSight -= Time.deltaTime;
 
         if(outOfSight <= 0f)
         {
-            if(repathTimer <= 0f && repathTimer >= -1f)
+            if(repathTimer <= 0f && currentTarget == "Player")
             {
-                UpdatePath("Lost");
-                repathTimer = -2f;
+                currentTarget = "Lost";
+                repathTimer = repathInterval;
+                UpdatePath();
                 Debug.Log("Lost sight of the target, wandering.");
             }
         }
@@ -60,7 +70,7 @@ public class Hunter : MonoBehaviour
         {
             Vector3 targetNodePos = path[currentIndex].worldPos;
 
-            if (path.Count - currentIndex > 1) targetNodePos *= overShot;//Target closest node and then add Overshot as a "He's running. He's chasing. He nearly ran to a wall."
+            //if (path.Count - currentIndex > 1) targetNodePos *= overShot;//Target closest node and then add Overshot as a "He's running. He's chasing. He nearly ran to a wall."
             isRunning = true;
 
             if (currentIndex + 1 < path.Count)
@@ -78,17 +88,19 @@ public class Hunter : MonoBehaviour
                         currentIndex = 0;
                         return;
                     }
-                    Debug.Log(path.Count);
+                    //Debug.Log(path.Count);
                     targetNodePos = path[currentIndex].worldPos;
                 }
             }
             else
             {
-                UpdatePath("Reached");
+                if(currentTarget != "Player")currentTarget = "Reached";
+                UpdatePath();
             }
             
             SteeringSeek(targetNodePos);
         }
+        else UpdatePath();
 
         animator.SetBool("isRunning", isRunning);
         rb.linearVelocity = moveVector * moveSpeed;
@@ -101,7 +113,8 @@ public class Hunter : MonoBehaviour
 
         if(hitInfo.collider.CompareTag("Player"))
         {
-            UpdatePath("Player");
+            currentTarget = "Player";
+            UpdatePath();
             inSight = true;
             outOfSight = outOfSightMax;
             Debug.Log("Target in sight, following.");
@@ -115,6 +128,8 @@ public class Hunter : MonoBehaviour
     void SteeringSeek(Vector3 seekTarget)
     {
         Vector3 direction = seekTarget - transform.position;
+        Vector3 playerDirection = player.transform.position - transform.position;
+
         direction.y = 0;
 
         if(isRunning && direction.sqrMagnitude > 0.01f)
@@ -125,8 +140,8 @@ public class Hunter : MonoBehaviour
                 transform.rotation = Quaternion.Slerp(lookRotation, transform.rotation, rotationSpeed * Time.deltaTime);
             }
         }
-
-        if(direction.magnitude < satisfactionRadius)
+        
+        else if(direction.magnitude < satisfactionRadius)
         {
             isRunning = false;
             repathTimer = repathInterval;
@@ -143,9 +158,9 @@ public class Hunter : MonoBehaviour
         moveVector = direction.normalized;
     }
 
-    void UpdatePath(string target)
+    void UpdatePath()
     {
-        if(target == "Player")
+        if(currentTarget == "Player")
         {
             path = pathfinder.FindPath(transform.position, player.transform.position);
         }
