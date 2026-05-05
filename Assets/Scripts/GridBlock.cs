@@ -69,7 +69,7 @@ public class GridBlock : MonoBehaviour
     {
         List<Node> neighborList = new List<Node>();
 
-        // Hanya 4 arah - tidak diagonal supaya tidak nabrak corner
+        //Hanya 4 arah - tidak diagonal supaya tidak nabrak corner
         int[] checkX = { 0, 0, 1, -1 };
         int[] checkY = { 1, -1, 0, 0 };
 

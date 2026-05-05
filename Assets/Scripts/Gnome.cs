@@ -68,6 +68,7 @@ public class Gnome : MonoBehaviour
         if (path == null || path.Count == 0) return;
 
         Vector3 targetPos = path[currentIndex].worldPos;
+        targetPos.y = transform.position.y;
 
         Vector3 direction = targetPos - transform.position;
         direction.y = 0;
@@ -80,15 +81,17 @@ public class Gnome : MonoBehaviour
                 lookRotation,
                 rotationSpeed * Time.deltaTime
             );
+            float moveStep = speed * Time.deltaTime;
+
+            if (moveStep >= direction.magnitude)
+            {
+                transform.position = targetPos;
+            }
+            else
+            {
+                transform.position += direction.normalized * moveStep;
+            }
         }
-
-        targetPos.y = transform.position.y;
-
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            targetPos,
-            speed * Time.deltaTime
-        );
 
         if (Vector3.Distance(transform.position, targetPos) < reachDistance)
         {
