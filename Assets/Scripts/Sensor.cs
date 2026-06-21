@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using static UnityEditor.PlayerSettings;
 
 public class Sensor : MonoBehaviour
 {
@@ -11,8 +12,12 @@ public class Sensor : MonoBehaviour
 
     public LayerMask targetMask;
     public LayerMask obstacleMask;
+    public LayerMask soundMask;
 
     public bool targetSensed;
+
+    public bool soundSensed;
+    public Vector3 soundPosition;
 
     void Start()
     {
@@ -27,9 +32,24 @@ public class Sensor : MonoBehaviour
         {
             yield return wait;
             SensorCheck();
+            SoundCheck();
         }
     }
+    public void SoundCheck()
+    {
+        Collider[] soundChecks = Physics.OverlapSphere(transform.position, radius,soundMask);
 
+        if (soundChecks.Length > 0)
+        {
+            soundSensed = true;
+            soundPosition = soundChecks[0].transform.position;
+            Debug.Log("Sound Terdetect");
+        }
+        else
+        {
+            soundSensed = false;
+        }
+    }
     public void SensorCheck()
     {
         Collider[] rangeChecks = Physics.OverlapSphere(transform.position, radius, targetMask);
@@ -50,17 +70,20 @@ public class Sensor : MonoBehaviour
                 else
                 {
                     targetSensed = false;
+                    targetGO = null;
                 }
 
             }
             else
             {
                 targetSensed = false;
+                targetGO = null;
             }
         }
         else if (targetSensed)
         {
             targetSensed = false;
+            targetGO = null;
         }
     }
 }
