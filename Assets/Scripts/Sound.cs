@@ -18,7 +18,7 @@ public class Sound : MonoBehaviour
 
     public void MakeSound()
     {
-        if (audioSource != null && soundClip != null)
+        if (audioSource != null && soundClip != null & !audioSource.isPlaying)
         {
             audioSource.PlayOneShot(soundClip);
         }

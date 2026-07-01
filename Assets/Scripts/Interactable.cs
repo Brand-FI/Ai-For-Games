@@ -1,15 +1,17 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
-public class Interactable : MonoBehaviour, IInteractable
+public class Interactable : MonoBehaviour
 {
     private Sound soundManager;
     private void Start()
     {
         soundManager = GetComponent<Sound>();
     }
-    public void Interact()
+    void OnControllerColliderHit()
     {
         soundManager.MakeSound();
         Debug.Log("Playing Sound");
     }
+
 }

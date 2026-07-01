@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - Gnome
+  - Interactable
   layers:
   - Default
   - TransparentFX
