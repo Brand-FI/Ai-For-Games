@@ -18,14 +18,14 @@ public class Sound : MonoBehaviour
 
     public void MakeSound()
     {
-        if (audioSource != null && soundClip != null & !audioSource.isPlaying)
+        if (audioSource != null && soundClip != null && !audioSource.isPlaying)
         {
             audioSource.PlayOneShot(soundClip);
+            gameObject.layer = soundLayer;
+            Debug.Log(gameObject.layer);
+            CancelInvoke();
+            Invoke(nameof(StopSound), soundDuration);
         }
-
-        gameObject.layer = soundLayer;
-        CancelInvoke();
-        Invoke(nameof(StopSound), soundDuration);
     }
 
     private void StopSound()

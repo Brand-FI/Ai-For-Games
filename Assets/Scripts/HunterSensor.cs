@@ -8,9 +8,9 @@ public class HunterSensor : MonoBehaviour
     Vector3 moveVector = Vector3.zero;
     Rigidbody rb;
     public float satisfactionRadius = 0.5f;
+    public float stopRadius = 0.5f;
     public float slowRadius = 1f;
     public float maxSpeed = 5f;
-    public float overShot = 1.1f;
     public bool isRunning = false;
     public float rotationSpeed = 5.0f;
     public LayerMask obstacleLayer;
@@ -25,16 +25,30 @@ public class HunterSensor : MonoBehaviour
     public float repathTimer = 0f;
     public float repathInterval = 1f;
 
-    public float outOfSight = 0f;
-    public float outOfSightMax = 5f;
-
-    public string currentTarget = "";
-
     //Sensor
     public Sensor sensor;
     private Vector3 lastSeenPosition;
 
-    public float stopDistance = 0.5f;
+    //Look Around
+
+    public bool isWaiting = false;
+    float waitTimer = 0f;
+
+    public float lookAngle = 45f;
+    public float lookInterval = 1f;
+
+    public float outOfSightMax = 2f;
+    public float investigateSoundMax = 2f;
+
+    bool hasLastSeenPosition;
+    bool hasLastHearPosition;
+    private Quaternion startRotation;
+
+    bool waitingLastPosition = false;
+    bool waitingSound = false;
+
+    float lookTimer = 0f;
+    bool lookRight = true;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -46,140 +60,206 @@ public class HunterSensor : MonoBehaviour
 
     void FixedUpdate()
     {
-
-        if(repathTimer > 0f)repathTimer -= Time.deltaTime;
-
-        if (sensor.targetSensed && sensor.targetGO != null)
+        if (repathTimer > 0)
         {
-            currentTarget = "Player";
-            outOfSight = outOfSightMax;
-            lastSeenPosition = sensor.targetGO.position;
-            Debug.Log("Sensed = " + sensor.targetSensed + "Player in Cone");
-            UpdatePath();
-            
-
+            repathTimer -= Time.deltaTime;
         }
-        else
-        {
-            outOfSight -= Time.deltaTime;
-        }
-
-        if (outOfSight <= 0f)
-        {
-            if(repathTimer <= 0f && currentTarget == "Player")
-            {
-                currentTarget = "Lost";
-                repathTimer = repathInterval;
-                UpdatePath();
-                Debug.Log("Sensed = " + sensor.targetSensed + "Player Not Detected");
-            }
-        }
-
-        if (currentTarget == "Player" && sensor.targetGO != null)//jika liat target dan sudah dekat maka berhenti dan win
-        {
-            float distToPlayer = Vector3.Distance(transform.position, sensor.targetGO.position);
-            Debug.Log(distToPlayer);
-            if (distToPlayer < stopDistance)
-            {
-                isRunning = false;
-                moveVector = Vector3.zero;
-                animator.SetBool("isRunning", isRunning);
-                rb.linearVelocity = Vector3.zero;
-                GameHelper.Instance.showPanelLose();
-                return;
-            }
-        }
-
-        if (path != null && path.Count > 0) //Make sure there is a path of nodes, and make sure not to break over index
-        {
-            Vector3 targetNodePos = path[currentIndex].worldPos;
-
-            //if (path.Count - currentIndex > 1) targetNodePos *= overShot;//Target closest node and then add Overshot as a "He's running. He's chasing. He nearly ran to a wall."
-            isRunning = true;
-
-            if (currentIndex + 1 < path.Count)
-            {
-                float distToCurrent = Vector3.Distance(transform.position, targetNodePos);
-
-                if (distToCurrent < satisfactionRadius)
-                {
-                    currentIndex++;
-                    if (currentIndex >= path.Count)
-                    {
-                        path = null;
-                        currentIndex = 0;
-                        return;
-                    }
-                    //Debug.Log(path.Count);
-                    targetNodePos = path[currentIndex].worldPos;
-                }
-            }
-            else
-            {
-                if(currentTarget != "Player")
-                {
-                    currentTarget = "Reached";
-                    UpdatePath();
-                }
-            }
-            
-            SteeringSeek(targetNodePos);
-        }
-        else UpdatePath();
-
+        MakeDecision();
         animator.SetBool("isRunning", isRunning);
         rb.linearVelocity = moveVector * moveSpeed;
     }
-
-    void SteeringSeek(Vector3 seekTarget)
+    void MakeDecision()
     {
-        if (path == null) return;
-
-        Vector3 direction = seekTarget - transform.position;
-
-        direction.y = 0;
-
-        if(isRunning && direction.sqrMagnitude > 0.01f)
+        if (sensor.targetSensed && sensor.targetGO != null)
         {
-            if(path.Count > 1)
-            {
-                Quaternion lookRotation = Quaternion.LookRotation(direction);
-                transform.rotation = Quaternion.Slerp(lookRotation, transform.rotation, rotationSpeed * Time.deltaTime);
-            }
+            hasLastSeenPosition = true;
+            lastSeenPosition = sensor.targetGO.position;
+            isWaiting = false;
+            waitingLastPosition = false;
+            hasLastHearPosition = false;
+            ChasePlayer();
         }
-        
-        else if(direction.magnitude < satisfactionRadius)
+        else if (sensor.soundSensed || hasLastHearPosition)
         {
-            isRunning = false;
+            hasLastHearPosition = true;
+            hasLastSeenPosition = false;
+            ChaseSound();
+        }
+        else if (hasLastSeenPosition)
+        {
+            ChaseLastPosition();
+        }
+        else if (isWaiting)
+        {
+            Wait();
+        }
+        else if (path == null || path.Count == 0)
+        {
+            Wander();
+        }
+        else
+        {
+            FollowPath();
+        }
+    }
+    void ChasePlayer()
+    {
+        Debug.Log("Chase Player");
+        lastSeenPosition = sensor.targetGO.position;
+        if (repathTimer <= 0f)
+        {
+            path = pathfinder.FindPath(transform.position, lastSeenPosition);
+            currentIndex = 0;
             repathTimer = repathInterval;
         }
-        else if(direction.magnitude < slowRadius)
+        FollowPath();
+        float dist = Vector3.Distance(transform.position, sensor.targetGO.position);
+        if (dist < stopRadius)
         {
-            moveSpeed = maxSpeed * direction.magnitude/slowRadius;
+            GameHelper.Instance.showPanelLose();
+        }
+    }
+    void ChaseLastPosition()
+    {
+        Debug.Log("Chase Last Pos");
+        if (path == null || path.Count == 0)
+        {
+            waitingLastPosition = true;
+            path = pathfinder.FindPath(transform.position, lastSeenPosition);
+            currentIndex = 0;
+        }
+        FollowPath();
+    }
+    void ChaseSound()
+    {
+        Debug.Log("Chase Sound");
+        path = null;
+        if(path == null)
+        {
+            waitingSound = true;
+            Node soundNode = gridRef.GetNearestNode(sensor.soundPosition);
+            path = pathfinder.FindPath(transform.position, soundNode.worldPos);
+            currentIndex = 0;
+            FollowPath();
+        }
+
+    }
+    void Wander()
+    {
+        if (path == null)
+        {
+            Debug.Log("Wandering");
+            Node random = gridRef.GetRandomNode();
+            path = pathfinder.FindPath(transform.position, random.worldPos);
+            currentIndex = 0;
+        }
+        FollowPath();
+    }
+
+    void FollowPath()
+    {
+        if (path == null || path.Count == 0)
+        {
+            return;
+        }
+        Vector3 targetNodePos = path[currentIndex].worldPos;
+        isRunning = true;
+
+        float distToCurrent = Vector3.Distance(transform.position, targetNodePos);
+        if (distToCurrent < satisfactionRadius)
+        {
+            if (currentIndex + 1 < path.Count)
+            {
+                currentIndex++;
+                targetNodePos = path[currentIndex].worldPos;
+            }
+            else
+            {
+                path = null;
+                currentIndex = 0;
+                if (waitingLastPosition)
+                {
+                    hasLastSeenPosition = false;
+                    isWaiting = true;
+                    waitTimer = outOfSightMax;
+                    startRotation = transform.rotation;
+                    waitingLastPosition = false;
+                }
+                else if (waitingSound)
+                {
+                    hasLastHearPosition = false;
+                    isWaiting = true;
+                    waitTimer = investigateSoundMax;
+                    startRotation = transform.rotation;
+                    waitingSound = false;
+                }
+                return;
+            }
+        }
+        SteeringSeek(targetNodePos);
+    }
+    void SteeringSeek(Vector3 seekTarget)
+    {
+        Vector3 direction = seekTarget - transform.position;
+        direction.y = 0;
+
+        float distance = direction.magnitude;
+
+        if (distance < satisfactionRadius)
+        {
+            isRunning = false;
+            moveVector = Vector3.zero;
+            moveSpeed = 0;
+            return;
+        }
+        if (distance < slowRadius)
+        {
+            moveSpeed = maxSpeed * distance / slowRadius;
         }
         else
         {
             moveSpeed = maxSpeed;
         }
-
+        Quaternion lookRotation = Quaternion.LookRotation(direction);
+        transform.rotation = Quaternion.Slerp(lookRotation, transform.rotation, rotationSpeed * Time.deltaTime);
+        isRunning = true;
         moveVector = direction.normalized;
     }
-
-    void UpdatePath()
+    void Wait()
     {
-        if(currentTarget == "Player")
+        isRunning = false;
+        moveVector = Vector3.zero;
+        LookAround();
+        waitTimer -= Time.deltaTime;
+        if (waitTimer <= 0)
         {
-            path = pathfinder.FindPath(transform.position, lastSeenPosition);
+            isWaiting = false;
+        }
+    }
+    void LookAround()
+    {
+        lookTimer += Time.deltaTime;
+        float angle = lookAngle;
+        if (lookRight)
+        {
+            angle = lookAngle;
         }
         else
         {
-            Node randomNode = gridRef.GetRandomNode();
-            path = pathfinder.FindPath(transform.position, randomNode.worldPos);
+            angle = -lookAngle;
         }
+        Vector3 baseForward = startRotation * Vector3.forward;
+        Vector3 direction = Quaternion.Euler(0, angle, 0) * baseForward;
+        Quaternion lookRotation = Quaternion.LookRotation(direction);
+        transform.rotation = Quaternion.Slerp(transform.rotation,lookRotation, 3f * Time.deltaTime);
 
-        currentIndex = 0;
+        if (lookTimer >= lookInterval)
+        {
+            lookRight = !lookRight;
+            lookTimer = 0f;
+        }
     }
-    
+
     void OnDrawGizmos()
     {
         if (path != null && path.Count > 0)

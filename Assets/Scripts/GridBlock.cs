@@ -115,6 +115,23 @@ public class GridBlock : MonoBehaviour
 
         return randomNode;
     }
+    public Node GetNearestNode(Vector3 worldPos)
+    {
+        Node targetNode = NodeFromWorldPoint(worldPos);
+        if (!targetNode.isWall)
+        {
+            return targetNode;
+        }
+        foreach (Node neighbor in GetNeighboringNodes(targetNode))
+        {
+            if (!neighbor.isWall)
+            {
+                return neighbor;
+            }
+        }
+        return targetNode;
+    }
+
 
     private void OnDrawGizmos()
     {

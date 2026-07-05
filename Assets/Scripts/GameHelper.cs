@@ -40,7 +40,7 @@ public class GameHelper : MonoBehaviour
         Time.timeScale = 1;
         panelWin.SetActive(false);
         panelLose.SetActive(false);
-        SceneManager.LoadScene("Level 1");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     public void BackToMenu()
