@@ -1850,8 +1850,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6cca9f4dccad3244a25bd1d6c4a754b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  interactorSource: {fileID: 1379960118}
-  interactRange: 2
 --- !u!136 &690171098
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -5747,7 +5745,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 3
   satisfactionRadius: 0.5
-  stopRadius: 1.5
+  stopRadius: 1.7
   slowRadius: 1
   maxSpeed: 1.5
   isRunning: 0
